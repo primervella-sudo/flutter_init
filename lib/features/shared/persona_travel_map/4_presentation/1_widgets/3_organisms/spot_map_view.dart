@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -8,7 +9,7 @@ import 'package:persona_travel/core/env/env.dart';
 import 'package:persona_travel/features/shared/persona_travel_map/1_domain/1_entities/spot_entity.dart';
 import 'package:persona_travel/features/shared/persona_travel_map/2_infrastructure/2_data_sources/2_remote/maps_remote_data_source.dart';
 import 'package:persona_travel/features/shared/persona_travel_map/3_application/2_providers/data_source_providers.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_windows/webview_windows.dart' as windows_webview;
 
 class SpotMapView extends ConsumerStatefulWidget {
   const SpotMapView({
@@ -29,7 +30,10 @@ class _SpotMapViewState extends ConsumerState<SpotMapView> {
   Future<Uint8List>? _staticMapFuture;
   List<Spot>? _lastStaticSpots;
   int? _lastStaticWidth;
-  WebViewController? _webViewController;
+  windows_webview.WebviewController? _windowsWebviewController;
+  bool _isWindowsWebviewReady = false;
+  String? _windowsWebviewError;
+  String? _pendingWindowsUrl;
 
   bool get _isInteractiveMapSupported {
     return kIsWeb ||
@@ -37,21 +41,23 @@ class _SpotMapViewState extends ConsumerState<SpotMapView> {
         defaultTargetPlatform == TargetPlatform.iOS;
   }
 
-  bool get _isEmbeddedWebViewSupported {
-    return !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
-  }
+  bool get _isWindowsWebViewSupported =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
 
   @override
   void initState() {
     super.initState();
-    if (_isEmbeddedWebViewSupported) {
-      _initWebViewController();
+    if (_isWindowsWebViewSupported) {
+      unawaited(_initWindowsWebView());
     }
   }
 
   @override
   void dispose() {
     _controller?.dispose();
+    final windowsController = _windowsWebviewController;
+    _windowsWebviewController = null;
+    windowsController?.dispose();
     super.dispose();
   }
 
@@ -60,8 +66,8 @@ class _SpotMapViewState extends ConsumerState<SpotMapView> {
     super.didUpdateWidget(oldWidget);
     if (!listEquals(oldWidget.spots, widget.spots)) {
       _scheduleCameraUpdate();
-      if (_isEmbeddedWebViewSupported) {
-        _refreshEmbeddedMap();
+      if (_isWindowsWebViewSupported) {
+        unawaited(_refreshWindowsWebView());
       } else {
         _markStaticMapDirty();
       }
@@ -90,11 +96,11 @@ class _SpotMapViewState extends ConsumerState<SpotMapView> {
       );
     }
 
-    if (_isEmbeddedWebViewSupported) {
+    if (_isWindowsWebViewSupported) {
       return SizedBox(
         height: widget.height,
         width: double.infinity,
-        child: _buildEmbeddedMap(context),
+        child: _buildWindowsWebView(context),
       );
     }
 
@@ -189,23 +195,39 @@ class _SpotMapViewState extends ConsumerState<SpotMapView> {
     );
   }
 
-  Widget _buildEmbeddedMap(BuildContext context) {
-    if (widget.spots.isEmpty) {
+  Widget _buildWindowsWebView(BuildContext context) {
+    if (_windowsWebviewError != null) {
       return Container(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         alignment: Alignment.center,
-        child: const Text('地図を表示するスポットがありません'),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          'Windows WebView2 の初期化に失敗しました\n${_windowsWebviewError!}',
+          textAlign: TextAlign.center,
+        ),
       );
     }
 
-    final controller = _webViewController;
+    if (!_isWindowsWebviewReady) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final controller = _windowsWebviewController;
     if (controller == null) {
       return const Center(child: CircularProgressIndicator());
     }
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: WebViewWidget(controller: controller),
+      child: windows_webview.Webview(
+        controller,
+        permissionRequested: (url, kind, isUserInitiated) async {
+          return windows_webview.WebviewPermissionDecision.allow;
+        },
+      ),
     );
   }
 
@@ -242,21 +264,57 @@ class _SpotMapViewState extends ConsumerState<SpotMapView> {
     _staticMapFuture = null;
   }
 
-  void _initWebViewController() {
-    final controller = WebViewController()
-      ..setBackgroundColor(Colors.transparent)
-      ..setJavaScriptMode(JavaScriptMode.unrestricted);
-    _webViewController = controller;
-    _refreshEmbeddedMap();
+  Future<void> _initWindowsWebView() async {
+    final controller = windows_webview.WebviewController();
+    _windowsWebviewController = controller;
+
+    try {
+      final version = await windows_webview.WebviewController.getWebViewVersion();
+      if (version == null) {
+        setState(() {
+          _windowsWebviewError =
+              'Microsoft Edge WebView2 Runtime が見つかりません。インストール後に再度お試しください。';
+        });
+        return;
+      }
+
+      await controller.initialize();
+      await controller.setBackgroundColor(Colors.transparent);
+      await controller.setPopupWindowPolicy(windows_webview.WebviewPopupWindowPolicy.deny);
+
+      if (widget.spots.isNotEmpty) {
+        final initialUrl = _embedUrlForSpots(widget.spots);
+        await controller.loadUrl(initialUrl);
+      }
+
+      if (_pendingWindowsUrl != null) {
+        await controller.loadUrl(_pendingWindowsUrl!);
+        _pendingWindowsUrl = null;
+      }
+
+      if (mounted) {
+        setState(() {
+          _isWindowsWebviewReady = true;
+        });
+      }
+    } catch (error) {
+      setState(() {
+        _windowsWebviewError = error.toString();
+      });
+    }
   }
 
-  void _refreshEmbeddedMap() {
-    final controller = _webViewController;
+  Future<void> _refreshWindowsWebView() async {
+    final controller = _windowsWebviewController;
     if (controller == null || widget.spots.isEmpty) {
       return;
     }
     final url = _embedUrlForSpots(widget.spots);
-    controller.loadRequest(Uri.parse(url));
+    if (!_isWindowsWebviewReady) {
+      _pendingWindowsUrl = url;
+      return;
+    }
+    await controller.loadUrl(url);
   }
 
   int _preferredStaticMapWidth(BuildContext context) {
