@@ -18,7 +18,7 @@ class SyncQueueNotifier extends _$SyncQueueNotifier {
   @override
   SyncQueueState build() {
     ref.onDispose(() => _subscription?.cancel());
-    _subscribe();
+    Future.microtask(_subscribe);
     return const SyncQueueState();
   }
 
@@ -44,7 +44,7 @@ class SyncQueueNotifier extends _$SyncQueueNotifier {
 
   void _subscribe() {
     _subscription?.cancel();
-    state = state.copyWith(pendingCount: const AsyncValue<int>.loading());
+    state = const SyncQueueState(pendingCount: AsyncValue<int>.loading());
     _subscription = _usecase.watchPendingCount().listen(
       (count) {
         state = state.copyWith(pendingCount: AsyncValue.data(count));

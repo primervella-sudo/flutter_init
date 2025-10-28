@@ -1,9 +1,5 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+import 'connection/connection.dart';
 
 part 'app_database.g.dart';
 
@@ -98,7 +94,7 @@ class SyncQueueTable extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
-  AppDatabase._internal() : super(_openConnection());
+  AppDatabase._internal() : super(openConnection());
 
   factory AppDatabase.create() => AppDatabase._internal();
 
@@ -109,6 +105,7 @@ class AppDatabase extends _$AppDatabase {
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await m.createAll();
+          await customStatement('INSERT INTO app_settings_table (language, map_view_preferences, realtime_location_enabled, onboarding_completed, analytics_opt_in) VALUES (\'ja\', \'{}\', 1, 0, 0)');
         },
         onUpgrade: (migrator, from, to) async {
           if (from != to) {
@@ -116,12 +113,4 @@ class AppDatabase extends _$AppDatabase {
           }
         },
       );
-}
-
-LazyDatabase _openConnection() {
-  return LazyDatabase(() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dir.path, 'persona_travel.db'));
-    return NativeDatabase.createInBackground(file);
-  });
 }

@@ -63,3 +63,6 @@ windows/flutter/ephemeral/
 
 # Xcode ユーザ状態ファイル
 **/*.xcuserstate
+
+.env    
+.env.*

@@ -15,7 +15,7 @@ class PersonaListNotifier extends _$PersonaListNotifier {
   @override
   PersonaListState build() {
     ref.onDispose(() => _subscription?.cancel());
-    _subscribe();
+    Future.microtask(_subscribe);
     return const PersonaListState();
   }
 
@@ -31,7 +31,7 @@ class PersonaListNotifier extends _$PersonaListNotifier {
 
   void _subscribe() {
     _subscription?.cancel();
-    state = state.copyWith(personas: const AsyncValue<List<Persona>>.loading());
+    state = const PersonaListState(personas: AsyncValue<List<Persona>>.loading());
     final repository = ref.read(personaRepositoryProvider);
     _subscription = repository.watchAll().listen(
       (personas) {

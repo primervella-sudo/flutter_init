@@ -15,7 +15,10 @@ class SettingsLocalDataSource {
 
   Stream<AppSettings> watch() {
     final query = _db.select(_db.appSettingsTable);
-    return query.watchSingle().map((row) => AppSettingsModel(row).toDomain());
+    return query.watchSingleOrNull().asyncMap((row) async {
+      final resolved = row ?? await _loadRow();
+      return AppSettingsModel(resolved).toDomain();
+    });
   }
 
   Future<void> save(AppSettings settings) async {
