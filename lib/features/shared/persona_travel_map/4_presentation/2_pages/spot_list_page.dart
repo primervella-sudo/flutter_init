@@ -3,6 +3,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:persona_travel/features/shared/persona_travel_map/1_domain/1_entities/app_settings_entity.dart';
 import 'package:persona_travel/features/shared/persona_travel_map/1_domain/1_entities/spot_entity.dart';
 import 'package:persona_travel/features/shared/persona_travel_map/3_application/2_providers/notifier_providers.dart';
+import 'package:persona_travel/features/shared/persona_travel_map/4_presentation/1_widgets/3_organisms/spot_map_view.dart';
 
 class SpotListPage extends ConsumerWidget {
   const SpotListPage({super.key});
@@ -79,7 +80,7 @@ class SpotListPage extends ConsumerWidget {
         ),
       ),
       body: spotState.spots.when(
-        data: (spots) => _SpotListView(spots: spots),
+        data: (spots) => _SpotListWithMap(spots: spots),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('スポットの読み込みに失敗しました: $error')),
       ),
@@ -92,35 +93,47 @@ class SpotListPage extends ConsumerWidget {
   }
 }
 
-class _SpotListView extends StatelessWidget {
-  const _SpotListView({required this.spots});
+class _SpotListWithMap extends StatelessWidget {
+  const _SpotListWithMap({required this.spots});
 
   final List<Spot> spots;
 
   @override
   Widget build(BuildContext context) {
-    if (spots.isEmpty) {
-      return const Center(child: Text('登録されたスポットはまだありません'));
-    }
-
-    return ListView.separated(
-      itemCount: spots.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        final spot = spots[index];
-        return ListTile(
-          title: Text(spot.title),
-          subtitle: Text(spot.address),
-          trailing: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('写真: ${spot.photos.length}枚'),
-              Text('共有: ${spot.isShared ? 'ON' : 'OFF'}'),
-            ],
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: SpotMapView(spots: spots),
           ),
-        );
-      },
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: spots.isEmpty
+              ? const Center(child: Text('登録されたスポットはまだありません'))
+              : ListView.separated(
+                  itemCount: spots.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final spot = spots[index];
+                    return ListTile(
+                      title: Text(spot.title),
+                      subtitle: Text(spot.address),
+                      trailing: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('写真: ${spot.photos.length}枚'),
+                          Text('共有: ${spot.isShared ? 'ON' : 'OFF'}'),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }

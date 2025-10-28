@@ -38,7 +38,7 @@ final aiReviewRemoteDataSourceProvider = Provider<AiReviewRemoteDataSource>((ref
   return AiReviewRemoteDataSource();
 });
 
-final mapsRemoteDataSourceProvider = Provider.family<MapsRemoteDataSource, String>((ref, apiKey) {
+final mapsRemoteDataSourceProvider = Provider<MapsRemoteDataSource>((ref) {
   final dio = ref.watch(dioProvider);
-  return MapsRemoteDataSource(dio, apiKey: apiKey);
+  return MapsRemoteDataSource(dio);
 });

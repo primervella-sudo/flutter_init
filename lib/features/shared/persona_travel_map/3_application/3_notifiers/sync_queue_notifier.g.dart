@@ -41,7 +41,7 @@ final class SyncQueueNotifierProvider
   }
 }
 
-String _$syncQueueNotifierHash() => r'271eb3a6fcfa8cda40cddc4824d4a4183f9d8bff';
+String _$syncQueueNotifierHash() => r'3c86c7f98938b9833ae7b13e0a587c94d48b1fb8';
 
 abstract class _$SyncQueueNotifier extends $Notifier<SyncQueueState> {
   SyncQueueState build();

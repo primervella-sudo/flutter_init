@@ -42,7 +42,7 @@ final class PersonaListNotifierProvider
 }
 
 String _$personaListNotifierHash() =>
-    r'222511eec6c6a0c2396e940c4977e0c8d599b76e';
+    r'a5812fd8da64f7785e369fa639728eb41314df28';
 
 abstract class _$PersonaListNotifier extends $Notifier<PersonaListState> {
   PersonaListState build();
