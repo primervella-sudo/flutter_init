@@ -1356,7 +1356,9 @@ class $SpotPhotosTableTable extends SpotPhotosTable
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
-    $customConstraints: 'REFERENCES spots_table(id) ON DELETE CASCADE',
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES spots_table (id)',
+    ),
   );
   static const VerificationMeta _sizeMeta = const VerificationMeta('size');
   @override
@@ -2522,13 +2524,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('spots_table', kind: UpdateKind.update)],
-    ),
-    WritePropagation(
-      on: TableUpdateQuery.onTableName(
-        'spots_table',
-        limitUpdateKind: UpdateKind.delete,
-      ),
-      result: [TableUpdate('spot_photos_table', kind: UpdateKind.delete)],
     ),
   ]);
 }

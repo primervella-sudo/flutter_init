@@ -63,6 +63,19 @@ class SpotLocalDataSource {
     return results;
   }
 
+  Future<void> reassignPersona({
+    required String fromPersonaId,
+    String? toPersonaId,
+  }) async {
+    final companion = SpotsTableCompanion(
+      personaId: Value(toPersonaId),
+      updatedAt: Value(DateTime.now()),
+    );
+    await (_db.update(_db.spotsTable)
+          ..where((tbl) => tbl.personaId.equals(fromPersonaId)))
+        .write(companion);
+  }
+
   Future<void> _replacePhotos(Spot spot) async {
     await (_db.delete(_db.spotPhotosTable)
           ..where((tbl) => tbl.spotId.equals(spot.id)))
