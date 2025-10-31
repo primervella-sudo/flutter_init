@@ -66,4 +66,4 @@ windows/flutter/ephemeral/
 
 .env    
 .env.*
-lib\core\env\env.g.dart
+lib/core/env/env.g.dart
